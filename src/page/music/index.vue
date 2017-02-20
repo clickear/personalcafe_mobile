@@ -25,12 +25,12 @@
 	            <img class="album" src="/static/img/placeholder_disk_play_song.png"/>
 	            <img class="disk-border" src="/static/img/play_disc.png"/>
 	        </div>
-	        <audio id="player" autoplay="true" :src="items[currentIndex].musicsrc"></audio>
+	        <audio id="player" :src="items[currentIndex].musicsrc"></audio>
 	        <div class="footer">
 	            <div class="process" id="process">
 	                <span id="currentTime">{{ currentTime }}</span>
 	                <div class="process-bar" id="processbar">
-	                    <div class="rdy"></div>
+	                    <div class="rdy" :style ="{'width':percentrdy+'%'}" ></div>
 	                    <div class="cur" id="curbar" :style ="{'width':percentage+'%'}" >
 	                        <span id="processBtn" class="process-btn c-btn" @touchstart="onTouchStart($event)" @touchend="onTouchEnd($event)" @touchmove="onTouchMove($event)" ></span>
 	                    </div>
@@ -39,9 +39,9 @@
 	            </div>
 	            <div class="control" id="controls">
 	                <span class="c-btn loop-btn" onclick="ctx.loop()"></span>
-	                <span class="pre c-btn" @click="currentIndex--"></span>
-	                <span class=" c-btn" :class="{'pause':!running,'play':running}" @click="toggerStatus"></span>
-	                <span class="next c-btn" @click="currentIndex++"></span>
+	                <span class="pre c-btn" @click="prev"></span>
+	                <span class=" c-btn" :class="{'pause':running,'play':!running}" @click="toggerStatus"></span>
+	                <span class="next c-btn" @click="next"></span>
 	                <span class="c-btn list-btn" @click="clickPlayList($event)"></span>
 	            </div>
 	        </div>
@@ -80,6 +80,7 @@ export default {
       currentTime: '',
       totalDuration: 0,
       percentage: 0,
+      percentrdy: 0,
       processBtnState: false
     }
   },
@@ -154,13 +155,43 @@ export default {
         this.player.pause()
       }
     },
+    next () {
+      this.currentIndex++
+      this.$nextTick(function () {
+        this.player.play()
+        this.running = true
+      })
+    },
+    prev () {
+      console.log(this.items.length)
+      if (this.currentIndex === 0) {
+        this.currentIndex = this.items.length - 1
+      } else {
+        this.currentIndex--
+      }
+      this.$nextTick(function () {
+        this.player.play()
+        this.running = true
+      })
+    },
     clickPlayList (ev) {
       this.showPlayList = !this.showPlayList
       ev.cancelBubble = true
     },
     clickPlayItem (ev, index) {
       this.currentIndex = index
+      this.$nextTick(function () {
+        this.player.play()
+        this.running = true
+      })
       ev.cancelBubble = true
+    },
+    _handleProgress () {
+      let buffer = this.player.buffered
+      let bufferTime = buffer.length > 0 ? buffer.end(buffer.length - 1) : 0
+      if (this.totalDuration !== 0) {
+        this.percentrdy = bufferTime / this.totalDuration * 100
+      }
     },
     _handleLoaded: function () {
       if (this.player.readyState >= 2) {
@@ -181,6 +212,7 @@ export default {
     init () {
       this.player.addEventListener('timeupdate', this._handlePlayingUI)
       this.player.addEventListener('loadeddata', this._handleLoaded)
+      this.player.addEventListener('progress', this._handleProgress)
     }
   },
   mounted () {
@@ -188,6 +220,8 @@ export default {
     vm.$nextTick(function () {
       vm.player = document.getElementById('player')
       vm.init()
+      vm.player.play()
+      vm.running = true
       // vm.player.src = vm.items[vm.currentIndex].musicsrc
     })
   }
