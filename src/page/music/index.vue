@@ -10,21 +10,16 @@
 	        </div>
 	    </div>
 	    <div class="play-board">
-	        <img id="needle" class="play-needle" :class="{'pause-needle':!running}" src="/static/img/play_needle.png"/>
-
+	        <img id="needle" class="play-needle" :class="{'pause-needle':!running || dragging}" src="/static/img/play_needle.png"/>
 	        <div class="disk-bg"></div>
-	        <div class="disk-cover disk-cover-animation" style="display: none">
-	            <img class="album" src="/static/img/placeholder_disk_play_song.png"/>
-	            <img class="disk-border" src="/static/img/play_disc.png"/>
-	        </div>
-	        <div class="disk-cover disk-cover-animation" :class="{'disk-cover-running': running}">
-	            <img class="album" :src="items[currentIndex].musicpic"/>
-	            <img class="disk-border" src="/static/img/play_disc.png"/>
-	        </div>
-	        <div class="disk-cover disk-cover-animation" style="display: none">
-	            <img class="album" src="/static/img/placeholder_disk_play_song.png"/>
-	            <img class="disk-border" src="/static/img/play_disc.png"/>
-	        </div>
+           <swiper ref="mySwiperA" style="height:300px;" :options="{notNextTick: true,lazyLoading : true,lazyLoadingInPrevNext : true,lazyLoadingInPrevNextAmount : 2,onTransitionEnd:_slideChange,onTouchStart:_slideStart,onTouchEnd:_slideEnd}">
+            <swiper-slide v-for="(item,index) in items">
+            <div class="disk-cover disk-cover-animation" :class="{'disk-cover-running': running && index==currentIndex}">
+                <img class="album swiper-lazy" :data-src="item.musicpic" />
+                <img class="disk-border" src="/static/img/play_disc.png"/>
+            </div>
+            </swiper-slide>
+          </swiper>
 	        <audio id="player" :src="items[currentIndex].musicsrc"></audio>
 	        <div class="footer">
 	            <div class="process" id="process">
@@ -32,7 +27,7 @@
 	                <div class="process-bar" id="processbar">
 	                    <div class="rdy" :style ="{'width':percentrdy+'%'}" ></div>
 	                    <div class="cur" id="curbar" :style ="{'width':percentage+'%'}" >
-	                        <span id="processBtn" class="process-btn c-btn" @touchstart="onTouchStart($event)" @touchend="onTouchEnd($event)" @touchmove="onTouchMove($event)" ></span>
+	                        <span id="processBtn" class="process-btn c-btn" @touchstart="onTouchStart($event)" @touchend="onProcessTouchEnd($event)" @touchmove="onProcessTouchMove($event)" ></span>
 	                    </div>
 	                </div>
 	                <span id="totalTime">{{ duration }}</span>
@@ -81,12 +76,16 @@ export default {
       totalDuration: 0,
       percentage: 0,
       percentrdy: 0,
-      processBtnState: false
+      processBtnState: false,
+      dragging: false
     }
   },
   computed: {
     duration () {
       return this.player ? convertTimeHHMMSS(this.totalDuration) : 's'
+    },
+    swiper () {
+      return this.$refs.mySwiperA.swiper
     }
   },
   created () {
@@ -118,12 +117,12 @@ export default {
     // })
   },
   methods: {
-    onTouchStart (e) {
+    onProcessTouchStart (e) {
       e = e.originalEvent || e
       this.processBtnState = true
       this.originX = (e.clientX || e.touches[0].clientX)
     },
-    onTouchEnd (e) {
+    onProcessTouchEnd (e) {
       if (this.processBtnState) {
         this.player.currentTime = document.getElementById('curbar').offsetWidth / document.getElementById('processbar').offsetWidth * this.totalDuration
         this.processBtnState = false
@@ -157,6 +156,7 @@ export default {
     },
     next () {
       this.currentIndex++
+      this.swiper.slideTo(this.currentIndex, 1000, false)
       this.$nextTick(function () {
         this.player.play()
         this.running = true
@@ -169,6 +169,7 @@ export default {
       } else {
         this.currentIndex--
       }
+      this.swiper.slideTo(this.currentIndex, 1000, false)
       this.$nextTick(function () {
         this.player.play()
         this.running = true
@@ -185,6 +186,22 @@ export default {
         this.running = true
       })
       ev.cancelBubble = true
+    },
+    _slideChange (swiper) {
+      if (this.currentIndex === swiper.activeIndex) return
+      this.currentIndex = swiper.activeIndex
+      console.log(this.currentIndex)
+      this.$nextTick(function () {
+        this.player.src = this.items[this.currentIndex].musicsrc
+        this.player.play()
+        this.running = true
+      })
+    },
+    _slideStart () {
+      this.dragging = true
+    },
+    _slideEnd () {
+      this.dragging = false
     },
     _handleProgress () {
       let buffer = this.player.buffered
@@ -278,7 +295,7 @@ html,body{
 .title {
     color: #fff;
     position: absolute;
-    top: 8px;
+    top: 0px;
     left: 0px;
     height: 10%;
     width: 100%;
@@ -343,6 +360,7 @@ html,body{
     animation-play-state: paused;
     -webkit-animation: rotate-disk 20s infinite normal linear;
     -webkit-animation-play-state: paused;
+    transition: left 2s;
 }
 
 .disk-cover-running{
@@ -533,6 +551,7 @@ html,body{
     max-height: 390px;
     margin: 0 auto;
     bottom: -60%;
+    z-index: 999
 }
 
 .play-list .list-title {
