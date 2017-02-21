@@ -1,7 +1,6 @@
 # personalcafe-mobile
-
 > A Vue.js project
-
++ 在线查看地址：http://45.76.219.186/
 ## Build Setup
 
 ``` bash
